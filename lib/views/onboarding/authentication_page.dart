@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../services/supabase_service.dart';
 import '../../ui/theme/meko_colors.dart';
 import '../../ui/theme/meko_text_styles.dart';
 import '../../ui/widgets/meko_button.dart';
 
 /// Authentication screen — first page of the onboarding flow.
 ///
-/// Collects the user's Garage ID and Customer ID before proceeding
-/// to the Connect Vehicle selection screen.
+/// Collects the user's Garage ID and Customer Username, verifies
+/// and activates the customer via Supabase RPC, fetches the user's
+/// record and joined relations, then proceeds to vehicle setup.
 class AuthenticationPage extends StatefulWidget {
   const AuthenticationPage({super.key});
 
@@ -29,19 +31,44 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
 
   Future<void> _handleProceed() async {
     final garageId = _garageIdController.text.trim();
-    final customerId = _customerIdController.text.trim();
+    final customerUsername = _customerIdController.text.trim();
 
-    if (garageId.isEmpty || customerId.isEmpty) {
+    if (garageId.isEmpty || customerUsername.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter both IDs')),
+        const SnackBar(
+          content: Text('Please enter both Garage ID and Customer Username'),
+        ),
       );
       return;
     }
 
     setState(() => _isLoading = true);
 
-    // TODO: Validate IDs against Supabase
-    await Future.delayed(const Duration(milliseconds: 500));
+    final result = await SupabaseService.verifyAndActivateCustomer(
+      garageId: garageId,
+      customerUsername: customerUsername,
+    );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.message ??
+                'Verification failed. Please check your credentials.',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // Fetch full user record joined with customer and vehicle relations
+    if (result.userEmail != null && result.userEmail!.isNotEmpty) {
+      await SupabaseService.getUserWithRelations(email: result.userEmail);
+    }
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -70,7 +97,7 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Enter your garage ID and customer ID',
+                'Enter your garage ID and customer username',
                 style: MekoTextStyles.bodyLarge.copyWith(
                   color: MekoColors.textSecondary,
                 ),
@@ -89,11 +116,11 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
 
               const SizedBox(height: 16),
 
-              // --- Customer ID Field ---
+              // --- Customer Username Field ---
               TextField(
                 controller: _customerIdController,
                 decoration: const InputDecoration(
-                  hintText: 'Enter your customer ID',
+                  hintText: 'Enter your customer username',
                 ),
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _handleProceed(),

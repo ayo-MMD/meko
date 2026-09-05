@@ -1,53 +1,60 @@
-/// Data model for a connected vehicle.
+import 'enums.dart';
+
+/// Data model for the `vehicle` table.
 ///
-/// Stores identifying info and sync metadata displayed on
-/// the Home and Settings screens.
+/// Represents a vehicle registered by a customer, connected via
+/// either a Vgate BLE adapter or Smartcar cloud sync.
 class Vehicle {
   const Vehicle({
-    required this.name,
-    required this.vin,
-    this.imageUrl,
-    this.lastSynced,
+    required this.id,
+    required this.userId,
+    required this.customerId,
+    this.createdAt,
+    this.name,
+    this.model,
+    this.connectionType = ConnectionType.none,
+    this.vin,
   });
 
-  /// Display name, e.g. "2013 Toyota Avalon".
-  final String name;
+  final String id;
+  final DateTime? createdAt;
+  final String? name;
+  final String? model;
+  final String userId;
+  final ConnectionType connectionType;
+  final String customerId;
+  final String? vin;
 
-  /// Vehicle Identification Number.
-  final String vin;
+  /// Display name — falls back to model or "Unknown Vehicle".
+  String get displayName {
+    if (name != null && name!.isNotEmpty) return name!;
+    if (model != null && model!.isNotEmpty) return model!;
+    return 'Unknown Vehicle';
+  }
 
-  /// Optional URL for a vehicle image.
-  final String? imageUrl;
-
-  /// Timestamp of last data sync.
-  final DateTime? lastSynced;
-
-  /// Construct from a Supabase JSON row.
   factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
-      name: json['name'] as String? ?? '',
-      vin: json['vin'] as String? ?? '',
-      imageUrl: json['image_url'] as String?,
-      lastSynced: json['last_synced'] != null
-          ? DateTime.tryParse(json['last_synced'] as String)
+      id: json['id'] as String? ?? '',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
           : null,
+      name: json['name'] as String?,
+      model: json['model'] as String?,
+      userId: json['user_id'] as String? ?? '',
+      connectionType:
+          ConnectionType.fromString(json['connection_type'] as String?),
+      customerId: json['customer_id'] as String? ?? '',
+      vin: json['vin'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'name': name,
+        'model': model,
+        'user_id': userId,
+        'connection_type': connectionType.toJson,
+        'customer_id': customerId,
         'vin': vin,
-        'image_url': imageUrl,
-        'last_synced': lastSynced?.toIso8601String(),
       };
-
-  /// Human-readable "X minutes ago" string for last sync time.
-  String get lastSyncedLabel {
-    if (lastSynced == null) return 'Never synced';
-    final diff = DateTime.now().difference(lastSynced!);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return 'Last synced:${diff.inMinutes} minutes ago';
-    if (diff.inHours < 24) return 'Last synced:${diff.inHours} hours ago';
-    return 'Last synced:${diff.inDays} days ago';
-  }
 }

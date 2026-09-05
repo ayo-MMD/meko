@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../../models/fault.dart';
+import '../../models/enums.dart';
+import '../../models/notification.dart';
 import '../../ui/theme/meko_colors.dart';
 import '../../ui/theme/meko_text_styles.dart';
 import '../../ui/widgets/meko_app_bar.dart';
 
-/// Fault Detail page — shows full information for a single diagnostic fault.
+/// Fault Detail page — shows full information for a single DTC notification.
 ///
-/// Layout matches the mockup: fault code heading, severity icon with label,
-/// description section, numbered symptoms list, numbered consequences list.
+/// Layout: fault code heading, severity icon with label, raw code,
+/// status, and timestamps.
 class FaultDetailPage extends StatelessWidget {
-  const FaultDetailPage({super.key, required this.fault});
+  const FaultDetailPage({super.key, required this.notification});
 
-  final Fault fault;
+  final DtcNotification notification;
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +25,9 @@ class FaultDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // --- Fault Code + Name ---
+            // --- Fault Code ---
             Text(
-              '${fault.code}-  ${fault.name.toUpperCase()}',
+              notification.code,
               style: MekoTextStyles.headlineMedium.copyWith(
                 color: MekoColors.textPrimary,
                 fontWeight: FontWeight.w800,
@@ -38,118 +39,55 @@ class FaultDetailPage extends StatelessWidget {
 
             // --- Severity Icon ---
             Icon(
-              _severityIcon(fault.severity),
+              _severityIcon(notification.severity),
               size: 72,
-              color: _severityColor(fault.severity),
+              color: _severityColor(notification.severity),
             ),
             const SizedBox(height: 8),
             Text(
-              fault.severity.label,
+              notification.severity.label,
               style: MekoTextStyles.label.copyWith(
-                color: _severityColor(fault.severity),
+                color: _severityColor(notification.severity),
               ),
             ),
 
             const SizedBox(height: 32),
 
-            // --- Description ---
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Description',
-                style: MekoTextStyles.headlineSmall.copyWith(
-                  color: MekoColors.textPrimary,
-                ),
+            // --- Status ---
+            if (notification.status != null) ...[
+              _InfoRow(
+                label: 'Status',
+                value: notification.status!.label,
               ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                fault.description.isNotEmpty ? fault.description : 'Description',
-                style: MekoTextStyles.bodyLarge.copyWith(
-                  color: MekoColors.textSecondary,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // --- Symptoms ---
-            if (fault.symptoms.isNotEmpty) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Symptoms',
-                  style: MekoTextStyles.headlineSmall.copyWith(
-                    color: MekoColors.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'This may cause your car to experience any of the following:',
-                  style: MekoTextStyles.bodyMedium.copyWith(
-                    color: MekoColors.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...fault.symptoms.asMap().entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${entry.key + 1}. ${entry.value}',
-                          style: MekoTextStyles.bodyMedium.copyWith(
-                            color: MekoColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
             ],
 
-            // --- Consequences ---
-            if (fault.consequences.isNotEmpty) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Consequences',
-                  style: MekoTextStyles.headlineSmall.copyWith(
-                    color: MekoColors.textPrimary,
-                  ),
-                ),
+            // --- Raw Code ---
+            if (notification.rawCode != null &&
+                notification.rawCode!.isNotEmpty) ...[
+              _InfoRow(
+                label: 'Raw Code',
+                value: notification.rawCode!,
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'If not fixed immediately, it could lead to more damages like:',
-                  style: MekoTextStyles.bodyMedium.copyWith(
-                    color: MekoColors.textSecondary,
-                  ),
-                ),
+              const SizedBox(height: 16),
+            ],
+
+            // --- Created At ---
+            if (notification.createdAt != null) ...[
+              _InfoRow(
+                label: 'Detected',
+                value: _formatDateTime(notification.createdAt!),
               ),
-              const SizedBox(height: 8),
-              ...fault.consequences.asMap().entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${entry.key + 1}. ${entry.value}',
-                          style: MekoTextStyles.bodyMedium.copyWith(
-                            color: MekoColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+              const SizedBox(height: 16),
+            ],
+
+            // --- Resolved At ---
+            if (notification.resolvedAt != null) ...[
+              _InfoRow(
+                label: 'Resolved',
+                value: _formatDateTime(notification.resolvedAt!),
+              ),
+              const SizedBox(height: 16),
             ],
           ],
         ),
@@ -157,25 +95,62 @@ class FaultDetailPage extends StatelessWidget {
     );
   }
 
-  IconData _severityIcon(FaultSeverity sev) {
+  IconData _severityIcon(NotificationSeverity sev) {
     switch (sev) {
-      case FaultSeverity.high:
+      case NotificationSeverity.high:
         return Icons.warning_rounded;
-      case FaultSeverity.medium:
+      case NotificationSeverity.medium:
         return Icons.warning_amber_rounded;
-      case FaultSeverity.low:
+      case NotificationSeverity.low:
         return Icons.info_outline;
     }
   }
 
-  Color _severityColor(FaultSeverity sev) {
+  Color _severityColor(NotificationSeverity sev) {
     switch (sev) {
-      case FaultSeverity.high:
+      case NotificationSeverity.high:
         return MekoColors.severityHigh;
-      case FaultSeverity.medium:
+      case NotificationSeverity.medium:
         return MekoColors.severityMedium;
-      case FaultSeverity.low:
+      case NotificationSeverity.low:
         return MekoColors.severityLow;
     }
+  }
+
+  String _formatDateTime(DateTime dt) {
+    return '${dt.day}/${dt.month}/${dt.year} at ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// A labelled info row used in the detail view.
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: MekoTextStyles.headlineSmall.copyWith(
+              color: MekoColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: MekoTextStyles.bodyLarge.copyWith(
+              color: MekoColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

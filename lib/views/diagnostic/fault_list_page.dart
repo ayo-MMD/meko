@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../models/fault.dart';
+import '../../models/enums.dart';
+import '../../models/notification.dart';
 import '../../ui/theme/meko_colors.dart';
 import '../../ui/theme/meko_text_styles.dart';
 import '../../ui/widgets/meko_app_bar.dart';
 
-/// Fault List page — tabbed list of faults by severity (High, Medium, Low).
+/// Fault List page — tabbed list of notifications by severity (High, Medium, Low).
 ///
-/// Each fault card shows the OBD2 code, title, severity badge, and
-/// a truncated description. Tapping a card navigates to the Fault Detail page.
+/// Each card shows the OBD2 code, severity badge, and raw code.
+/// Tapping a card navigates to the Fault Detail page.
 class FaultListPage extends StatelessWidget {
   const FaultListPage({super.key});
 
@@ -47,13 +48,13 @@ class FaultListPage extends StatelessWidget {
               ),
             ),
 
-            // --- Fault Lists ---
-            Expanded(
+            // --- Notification Lists ---
+            const Expanded(
               child: TabBarView(
                 children: [
-                  _FaultListView(severity: FaultSeverity.high),
-                  _FaultListView(severity: FaultSeverity.medium),
-                  _FaultListView(severity: FaultSeverity.low),
+                  _DtcListView(severity: NotificationSeverity.high),
+                  _DtcListView(severity: NotificationSeverity.medium),
+                  _DtcListView(severity: NotificationSeverity.low),
                 ],
               ),
             ),
@@ -64,42 +65,43 @@ class FaultListPage extends StatelessWidget {
   }
 }
 
-/// Scrollable list of fault cards filtered by severity.
-class _FaultListView extends StatelessWidget {
-  _FaultListView({required this.severity});
+/// Scrollable list of DTC notification cards filtered by severity.
+class _DtcListView extends StatelessWidget {
+  const _DtcListView({required this.severity});
 
-  final FaultSeverity severity;
+  final NotificationSeverity severity;
 
   // TODO: Replace with real data from Supabase
-  final List<Fault> _demoFaults = [
-    const Fault(
+  final List<DtcNotification> _demoNotifications = const [
+    DtcNotification(
+      id: 'demo-1',
+      vehicleId: 'v-1',
       code: 'P0320',
-      name: 'Cylinder misfire',
-      severity: FaultSeverity.high,
-      description:
-          'There appears to be an issue around your fuel pump. This may cause your car to lag when you start to accelerate, it may also cause your car to jerk at high speeds, it may also cause your car to loos.......',
+      severity: NotificationSeverity.high,
+      rawCode: '0320',
     ),
-    const Fault(
-      code: 'P0320',
-      name: 'Cylinder misfire',
-      severity: FaultSeverity.high,
-      description:
-          'There appears to be an issue around your fuel pump. This may cause your car to lag when you start to accelerate, it may also cause your car to jerk at high speeds, it may also cause your car to loos.......',
+    DtcNotification(
+      id: 'demo-2',
+      vehicleId: 'v-1',
+      code: 'P0230',
+      severity: NotificationSeverity.high,
+      rawCode: '0230',
     ),
-    const Fault(
-      code: 'P0320',
-      name: 'Cylinder misfire',
-      severity: FaultSeverity.high,
-      description:
-          'There appears to be an issue around your fuel pump. This may cause your car to lag when you start to accelerate, it may also cause your car to jerk at high speeds, it may also cause your car to loos.......',
+    DtcNotification(
+      id: 'demo-3',
+      vehicleId: 'v-1',
+      code: 'P0455',
+      severity: NotificationSeverity.medium,
+      rawCode: '0455',
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final faults = _demoFaults.where((f) => f.severity == severity).toList();
+    final items =
+        _demoNotifications.where((n) => n.severity == severity).toList();
 
-    if (faults.isEmpty) {
+    if (items.isEmpty) {
       return Center(
         child: Text(
           'No ${severity.label.toLowerCase()} faults found',
@@ -112,27 +114,27 @@ class _FaultListView extends StatelessWidget {
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: faults.length,
+      itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final fault = faults[index];
-        return _FaultCard(fault: fault);
+        final notification = items[index];
+        return _DtcCard(notification: notification);
       },
     );
   }
 }
 
-/// A single fault card in the list.
-class _FaultCard extends StatelessWidget {
-  const _FaultCard({required this.fault});
+/// A single DTC notification card in the list.
+class _DtcCard extends StatelessWidget {
+  const _DtcCard({required this.notification});
 
-  final Fault fault;
+  final DtcNotification notification;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        Navigator.of(context).pushNamed('/fault', arguments: fault);
+        Navigator.of(context).pushNamed('/fault', arguments: notification);
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -150,7 +152,7 @@ class _FaultCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${fault.code}: ${fault.name}',
+                    notification.code,
                     style: MekoTextStyles.headlineSmall.copyWith(
                       color: MekoColors.textPrimary,
                       fontSize: 16,
@@ -165,13 +167,13 @@ class _FaultCard extends StatelessWidget {
                     Icon(
                       Icons.error_outline,
                       size: 18,
-                      color: _severityColor(fault.severity),
+                      color: _severityColor(notification.severity),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      fault.severity.label,
+                      notification.severity.label,
                       style: MekoTextStyles.bodySmall.copyWith(
-                        color: _severityColor(fault.severity),
+                        color: _severityColor(notification.severity),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -179,29 +181,30 @@ class _FaultCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            // Description
-            Text(
-              fault.description,
-              style: MekoTextStyles.bodyMedium.copyWith(
-                color: MekoColors.textSecondary,
+            if (notification.rawCode != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Raw code: ${notification.rawCode}',
+                style: MekoTextStyles.bodyMedium.copyWith(
+                  color: MekoColors.textSecondary,
+                ),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Color _severityColor(FaultSeverity sev) {
+  Color _severityColor(NotificationSeverity sev) {
     switch (sev) {
-      case FaultSeverity.high:
+      case NotificationSeverity.high:
         return MekoColors.severityHigh;
-      case FaultSeverity.medium:
+      case NotificationSeverity.medium:
         return MekoColors.severityMedium;
-      case FaultSeverity.low:
+      case NotificationSeverity.low:
         return MekoColors.severityLow;
     }
   }

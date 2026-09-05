@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/fault.dart';
+import '../models/notification.dart';
 import '../views/diagnostic/fault_detail_page.dart';
 import '../views/main_shell.dart';
 import '../views/onboarding/authentication_page.dart';
@@ -57,8 +57,8 @@ class AppRouter {
         return _page(const MainShell());
 
       case fault:
-        final faultArg = settings.arguments as Fault;
-        return _page(FaultDetailPage(fault: faultArg));
+        final notificationArg = settings.arguments as DtcNotification;
+        return _page(FaultDetailPage(notification: notificationArg));
 
       default:
         return _page(const AuthenticationPage());
